@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>美甲職人計費系統-修復版</title>
+    <style>
+        :root { --primary: #d4a373; --bg: #f9f6f2; --card: #ffffff; --text: #5a4a42; --accent: #a68b7c; }
+        body { font-family: -apple-system, "Noto Sans TC", sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 0; transition: all 0.3s ease; }
+        
+        .nav-tabs { display: flex; background: var(--card); position: sticky; top: 0; z-index: 1001; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .nav-tab { flex: 1; text-align: center; padding: 15px; font-size: 14px; font-weight: bold; color: #ccc; cursor: pointer; }
+        .nav-tab.active { color: var(--primary); border-bottom: 3px solid var(--primary); }
+
+        .container { max-width: 500px; margin: auto; background: var(--card); padding: 20px; padding-bottom: 350px; min-height: 100vh; box-sizing: border-box; }
+        .view { display: none; }
+        .view.active { display: block; }
+
+        h2 { text-align: center; color: var(--primary); margin: 10px 0 20px; font-weight: 800; }
+        section { margin-bottom: 25px; border-bottom: 1px solid #f0ede9; padding-bottom: 15px; }
+        h3 { font-size: 15px; color: var(--accent); margin-bottom: 12px; background: #fdfaf7; padding: 6px 12px; border-left: 4px solid var(--primary); display: flex; justify-content: space-between; align-items: center; }
+
+        .type-switcher { display: flex; gap: 10px; margin-bottom: 20px; }
+        .type-btn { flex: 1; padding: 12px; border-radius: 12px; border: 1px solid #eee; background: #fff; cursor: pointer; text-align: center; font-weight: bold; font-size: 14px; }
+        .type-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+        .btn-card { border: 1px solid #eee; padding: 10px 5px; border-radius: 12px; text-align: center; cursor: pointer; font-size: 13px; background: #fff; transition: 0.2s; min-height: 55px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-sizing: border-box; line-height: 1.4; }
+        .btn-card.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .btn-card .price-tag { font-size: 11px; opacity: 0.8; margin-top: 2px; }
+
+        .item-row { display: flex; justify-content: space-between; align-items: center; margin: 12px 0; }
+        .controls { display: flex; align-items: center; gap: 8px; }
+        .counter-input { width: 40px; height: 30px; text-align: center; border: 1px solid #eee; border-radius: 8px; font-weight: bold; color: var(--primary); }
+        button.circle { width: 32px; height: 32px; border-radius: 50%; border: 1px solid #ddd; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #888; }
+
+        .admin-card { background: #fdfaf7; padding: 15px; border-radius: 15px; margin-bottom: 15px; border: 1px solid #f0ede9; }
+        .admin-label { display: block; font-size: 13px; font-weight: bold; margin-bottom: 8px; color: var(--accent); }
+        .admin-input { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 14px; }
+        .color-palette { display: flex; flex-wrap: wrap; gap: 12px; padding: 10px 0; }
+        .color-dot { width: 35px; height: 35px; border-radius: 50%; cursor: pointer; border: 2px solid #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        
+        .footer { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255,255,255,0.96); backdrop-filter: blur(10px); padding: 15px; box-shadow: 0 -5px 25px rgba(0,0,0,0.08); z-index: 1000; }
+        .discount-section { display: flex; gap: 8px; margin-bottom: 10px; }
+        .discount-input { flex: 1; padding: 8px; border-radius: 8px; border: 1px solid #eee; text-align: center; font-size: 13px; }
+        .total-box { font-size: 22px; font-weight: 800; text-align: center; margin-bottom: 10px; color: var(--primary); }
+        #preview-area { background: #fdfaf7; border-radius: 12px; padding: 12px; font-size: 13px; color: #7a6a60; margin-bottom: 12px; white-space: pre-wrap; height: 110px; overflow-y: auto; border: 1px solid #f0ede9; line-height: 1.5; }
+        .copy-btn { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 15px; font-size: 16px; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="nav-tabs">
+    <div class="nav-tab active" id="tab-calc" onclick="switchView('calc')">計算器</div>
+    <div class="nav-tab" id="tab-admin" onclick="switchView('admin')">後台管理</div>
+</div>
+
+<div class="container">
+    <div id="view-calc" class="view active">
+        <h2>美甲計費</h2>
+        
+        <div class="type-switcher">
+            <div class="type-btn active" id="btn-hand" onclick="setMode('hand')">手部施作</div>
+            <div class="type-btn" id="btn-foot" onclick="setMode('foot')">足部施作</div>
+        </div>
+
+        <section>
+            <h3>1. 款式底價 (單選)</h3>
+            <div id="base-container" class="grid"></div>
+        </section>
+
+        <section>
+            <h3>2. 卸甲服務 (單選)</h3>
+            <div id="removal-container" class="grid"></div>
+        </section>
+
+        <section>
+            <h3>3. 保養服務 (可複選)</h3>
+            <div id="care-container" class="grid"></div>
+        </section>
+
+        <div id="dynamic-sections"></div>
+
+        <section>
+            <h3>預約資訊</h3>
+            <div id="info-display" style="font-size: 13px; margin-bottom: 10px; font-weight: bold;"></div>
+            <div id="rules-display" style="font-size: 12px; color: #a68b7c; padding: 10px; background: #fffaf5; border-radius: 10px; white-space: pre-wrap;"></div>
+        </section>
+    </div>
+
+    <div id="view-admin" class="view">
+        <h2>後台管理</h2>
+        
+        <section>
+            <h3>風格配色 (莫蘭迪色系)</h3>
+            <div class="color-palette" id="palette"></div>
+        </section>
+
+        <section>
+            <h3>固定分類項目設定</h3>
+            <div class="admin-card">
+                <p class="admin-label">款式底價清單 (手/足)</p>
+                <div id="admin-base-hand"></div>
+                <button class="circle" style="width:100%; border-radius:8px; font-size:12px; margin-bottom:10px" onclick="addBaseItem('hand')">+ 手部底價</button>
+                <div id="admin-base-foot"></div>
+                <button class="circle" style="width:100%; border-radius:8px; font-size:12px;" onclick="addBaseItem('foot')">+ 足部底價</button>
+            </div>
+            <div class="admin-card">
+                <p class="admin-label">卸甲項目清單 (單選)</p>
+                <div id="admin-removal"></div>
+                <button class="circle" style="width:100%; border-radius:8px; font-size:12px;" onclick="addRadioItem('removal')">+ 新增卸甲項目</button>
+            </div>
+            <div class="admin-card">
+                <p class="admin-label">保養項目清單 (複選)</p>
+                <div id="admin-care"></div>
+                <button class="circle" style="width:100%; border-radius:8px; font-size:12px;" onclick="addRadioItem('care')">+ 新增保養項目</button>
+            </div>
+        </section>
+
+        <section>
+            <h3>加購類別管理 (延甲、飾品等)</h3>
+            <div id="admin-items-container"></div>
+            <button class="copy-btn" style="background: #a68b7c; margin-top:10px;" onclick="addNewCategory()">+ 新增項目類別</button>
+        </section>
+
+        <section>
+            <h3>店務設定 (預約資訊)</h3>
+            <label class="admin-label">美甲師姓名</label>
+            <input type="text" id="cfg-staff" class="admin-input" placeholder="美甲師姓名" oninput="updateShopInfo('staff', this.value)">
+            <label class="admin-label">預約須知</label>
+            <textarea id="cfg-rules" class="admin-input" rows="4" placeholder="預約規則" oninput="updateShopInfo('rules', this.value)"></textarea>
+        </section>
+        
+        <button class="copy-btn" style="background: #5a4a42; margin: 20px 0;" onclick="resetToDefault()">恢復出廠預設值</button>
+    </div>
+</div>
+
+<div class="footer" id="calc-footer">
+    <div class="discount-section">
+        <input type="number" id="discount-fixed" class="discount-input" placeholder="現折元" oninput="calculate()">
+        <input type="number" id="discount-percent" class="discount-input" placeholder="折扣% (如95折)" oninput="calculate()">
+    </div>
+    <div class="total-box">總計: $<span id="total-val">0</span></div>
+    <div id="preview-area">尚未選擇項目...</div>
+    <button class="copy-btn" onclick="copyToClipboard()">複製明細內容</button>
+</div>
+
+<script>
+    const DEFAULT_CONFIG = {
+        theme: { primary: '#d4a373', bg: '#f9f6f2', text: '#5a4a42', accent: '#a68b7c' },
+        staff: 'Lily',
+        rules: '※ 請準時抵達，逾時15分視同取消',
+        bases: {
+            hand: [{ name: '手部單色', price: 1100 }],
+            foot: [{ name: '足部單色', price: 1300 }]
+        },
+        radioGroups: {
+            removal: [{ name: '本店卸甲', price: 200 }, { name: '他店卸甲', price: 400 }],
+            care: [{ name: '基礎保養', price: 0 }, { name: '深層SPA', price: 500 }, { name: '去角質', price: 200 }]
+        },
+        categories: [
+            { title: '加購項目', items: [{ name: '單指延甲', price: 150, count: 0 }, { name: '跳色', price: 100, count: 0 }] }
+        ]
+    };
+
+    let cfg = JSON.parse(localStorage.getItem('nail_v5_cfg')) || DEFAULT_CONFIG;
+    let currentMode = 'hand';
+    let sel = { base: -1, removal: -1, care: [] };
+
+    function init() {
+        renderPalette();
+        applyTheme(cfg.theme);
+        syncAdmin();
+        renderCalculator();
+        calculate();
+    }
+
+    // --- 新增：專門處理店務資訊更新的函數 ---
+    function updateShopInfo(field, value) {
+        cfg[field] = value;
+        saveConfig();
+        // 核心：輸入時同步更新計算器畫面的文字
+        if (field === 'staff') {
+            document.getElementById('info-display').innerText = `👩‍🎨 美甲師：${cfg.staff} | 📅 ${new Date().toLocaleDateString()}`;
+        } else if (field === 'rules') {
+            document.getElementById('rules-display').innerText = cfg.rules;
+        }
+    }
+
+    // --- 計算器渲染 ---
+    function setMode(mode) {
+        currentMode = mode;
+        sel.base = -1;
+        renderCalculator();
+        calculate();
+    }
+
+    function renderCalculator() {
+        // 1. 底價
+        const baseContainer = document.getElementById('base-container');
+        baseContainer.innerHTML = '';
+        cfg.bases[currentMode].forEach((b, i) => {
+            baseContainer.innerHTML += `<div class="btn-card ${sel.base===i?'active':''}" onclick="selSingle('base',${i})"><div>${b.name}</div><div class="price-tag">$${b.price}</div></div>`;
+        });
+
+        // 2. 卸甲
+        const remContainer = document.getElementById('removal-container');
+        remContainer.innerHTML = '';
+        cfg.radioGroups.removal.forEach((b, i) => {
+            remContainer.innerHTML += `<div class="btn-card ${sel.removal===i?'active':''}" onclick="selSingle('removal',${i})"><div>${b.name}</div><div class="price-tag">$${b.price}</div></div>`;
+        });
+
+        // 3. 保養
+        const careContainer = document.getElementById('care-container');
+        careContainer.innerHTML = '';
+        cfg.radioGroups.care.forEach((b, i) => {
+            const isActive = sel.care.includes(i);
+            careContainer.innerHTML += `<div class="btn-card ${isActive?'active':''}" onclick="selMulti('care',${i})"><div>${b.name}</div><div class="price-tag">$${b.price}</div></div>`;
+        });
+
+        // 4. 加購
+        const dynSections = document.getElementById('dynamic-sections');
+        dynSections.innerHTML = '';
+        cfg.categories.forEach((cat, cIdx) => {
+            let html = `<section><h3>${cat.title}</h3>`;
+            cat.items.forEach((item, iIdx) => {
+                html += `
+                <div class="item-row">
+                    <span>${item.name} ($${item.price})</span>
+                    <div class="controls">
+                        <button class="circle" onclick="updateCount(${cIdx},${iIdx},-1)">-</button>
+                        <input type="number" class="counter-input" value="${item.count||0}" readonly>
+                        <button class="circle" onclick="updateCount(${cIdx},${iIdx},1)">+</button>
+                    </div>
+                </div>`;
+            });
+            dynSections.innerHTML += html + `</section>`;
+        });
+
+        // 更新底部的預約資訊顯示
+        document.getElementById('info-display').innerText = `👩‍🎨 美甲師：${cfg.staff} | 📅 ${new Date().toLocaleDateString()}`;
+        document.getElementById('rules-display').innerText = cfg.rules;
+    }
+
+    function selSingle(key, idx) {
+        sel[key] = (sel[key] === idx) ? -1 : idx;
+        renderCalculator();
+        calculate();
+    }
+
+    function selMulti(key, idx) {
+        const index = sel[key].indexOf(idx);
+        if (index > -1) {
+            sel[key].splice(index, 1);
+        } else {
+            sel[key].push(idx);
+        }
+        renderCalculator();
+        calculate();
+    }
+
+    function updateCount(cIdx, iIdx, delta) {
+        cfg.categories[cIdx].items[iIdx].count = Math.max(0, (cfg.categories[cIdx].items[iIdx].count || 0) + delta);
+        saveConfig(); // 儲存數量狀態
+        renderCalculator();
+        calculate();
+    }
+
+    function calculate() {
+        let total = 0;
+        let detail = `✨ ${currentMode==='hand'?'手部':'足部'}美甲明細 ✨\n美甲師：${cfg.staff}\n--------------------------\n`;
+
+        if(sel.base !== -1) { 
+            let b = cfg.bases[currentMode][sel.base]; 
+            total += b.price; detail += `款式：${b.name} $${b.price}\n`; 
+        }
+        if(sel.removal !== -1) { 
+            let r = cfg.radioGroups.removal[sel.removal]; 
+            total += r.price; detail += `卸甲：${r.name} $${r.price}\n`; 
+        }
+        sel.care.forEach(idx => {
+            let c = cfg.radioGroups.care[idx];
+            total += c.price; detail += `保養：${c.name} $${c.price}\n`;
+        });
+        cfg.categories.forEach(cat => {
+            cat.items.forEach(item => {
+                if(item.count > 0) {
+                    let sub = item.price * item.count;
+                    total += sub; detail += `+ ${item.name} x${item.count}: $${sub}\n`;
+                }
+            });
+        });
+
+        const discF = parseInt(document.getElementById('discount-fixed').value) || 0;
+        const discP = parseInt(document.getElementById('discount-percent').value) || 0;
+        if(discF > 0) { total -= discF; detail += `👉 現折：-$${discF}\n`; }
+        if(discP > 0) { total = Math.round(total * (discP/100)); detail += `👉 折扣：${discP}折\n`; }
+
+        document.getElementById('total-val').innerText = Math.max(0, total);
+        document.getElementById('preview-area').innerText = total > 0 ? detail + `--------------------------\n💰 總計：$${Math.max(0, total)}` : "尚未選擇項目...";
+    }
+
+    function syncAdmin() {
+        document.getElementById('cfg-staff').value = cfg.staff;
+        document.getElementById('cfg-rules').value = cfg.rules;
+        renderAdminRadios('hand', 'admin-base-hand', true);
+        renderAdminRadios('foot', 'admin-base-foot', true);
+        renderAdminRadios('removal', 'admin-removal', false);
+        renderAdminRadios('care', 'admin-care', false);
+        renderAdminItems();
+    }
+
+    function renderAdminRadios(key, containerId, isBase) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = '';
+        const list = isBase ? cfg.bases[key] : cfg.radioGroups[key];
+        list.forEach((item, idx) => {
+            container.innerHTML += `
+            <div style="display:flex; gap:5px; margin-bottom:5px;">
+                <input type="text" class="admin-input" style="flex:2" value="${item.name}" oninput="updateRadioVal('${key}',${idx},'name',this.value,${isBase})">
+                <input type="number" class="admin-input" style="flex:1" value="${item.price}" oninput="updateRadioVal('${key}',${idx},'price',this.value,${isBase})">
+                <button onclick="removeRadioItem('${key}',${idx},${isBase})" style="border:none; background:none;">🗑️</button>
+            </div>`;
+        });
+    }
+
+    function updateRadioVal(key, idx, prop, val, isBase) {
+        const list = isBase ? cfg.bases[key] : cfg.radioGroups[key];
+        list[idx][prop] = (prop === 'price') ? parseInt(val) : val;
+        saveConfig();
+    }
+
+    function addBaseItem(mode) { cfg.bases[mode].push({name:'新款式', price:0}); syncAdmin(); saveConfig(); }
+    function addRadioItem(key) { cfg.radioGroups[key].push({name:'新服務', price:0}); syncAdmin(); saveConfig(); }
+    function removeRadioItem(key, idx, isBase) { (isBase?cfg.bases[key]:cfg.radioGroups[key]).splice(idx,1); syncAdmin(); saveConfig(); }
+
+    function renderAdminItems() {
+        const container = document.getElementById('admin-items-container');
+        container.innerHTML = '';
+        cfg.categories.forEach((cat, cIdx) => {
+            let html = `<div class="admin-card">
+                <input type="text" class="admin-input" style="font-weight:bold" value="${cat.title}" oninput="cfg.categories[${cIdx}].title=this.value; saveConfig();">`;
+            cat.items.forEach((item, iIdx) => {
+                html += `
+                <div style="display:flex; gap:5px; margin-bottom:5px;">
+                    <input type="text" class="admin-input" style="flex:2" value="${item.name}" oninput="updateDynVal(${cIdx},${iIdx},'name',this.value)">
+                    <input type="number" class="admin-input" style="flex:1" value="${item.price}" oninput="updateDynVal(${cIdx},${iIdx},'price',this.value)">
+                    <button onclick="cfg.categories[${cIdx}].items.splice(${iIdx},1); syncAdmin(); saveConfig();" style="border:none; background:none;">🗑️</button>
+                </div>`;
+            });
+            html += `<button class="circle" style="width:100%; border-radius:8px; font-size:12px;" onclick="cfg.categories[${cIdx}].items.push({name:'',price:0,count:0}); syncAdmin(); saveConfig();">+ 加購項目</button></div>`;
+            container.innerHTML += html;
+        });
+    }
+
+    function updateDynVal(cIdx, iIdx, prop, val) { cfg.categories[cIdx].items[iIdx][prop] = (prop==='price')?parseInt(val):val; saveConfig(); }
+    function addNewCategory() { cfg.categories.push({title:'新分類', items:[]}); syncAdmin(); saveConfig(); }
+    
+    // 修改存檔函數，確保呼叫時同時更新計算器
+    function saveConfig() { 
+        localStorage.setItem('nail_v5_cfg', JSON.stringify(cfg)); 
+        // 為了確保計算明細中的名字也同步，這裡需要重新計算
+        calculate(); 
+    }
+
+    function renderPalette() {
+        const p = document.getElementById('palette');
+        const morandi = [
+            { name: '奶油棕', primary: '#d4a373', bg: '#f9f6f2', text: '#5a4a42', accent: '#a68b7c' },
+            { name: '霧霾藍', primary: '#8da9c4', bg: '#f0f4f7', text: '#465a6d', accent: '#70889e' },
+            { name: '鼠尾草', primary: '#94a684', bg: '#f1f3ee', text: '#4a5640', accent: '#768668' },
+            { name: '丁香紫', primary: '#a594f9', bg: '#f5f3ff', text: '#4a446e', accent: '#8072c7' }
+        ];
+        morandi.forEach(t => {
+            const dot = document.createElement('div');
+            dot.className = 'color-dot'; dot.style.background = t.primary;
+            dot.onclick = () => { cfg.theme = t; applyTheme(t); saveConfig(); };
+            p.appendChild(dot);
+        });
+    }
+
+    function applyTheme(t) {
+        document.documentElement.style.setProperty('--primary', t.primary);
+        document.documentElement.style.setProperty('--bg', t.bg);
+        document.documentElement.style.setProperty('--text', t.text);
+        document.documentElement.style.setProperty('--accent', t.accent);
+    }
+
+    function switchView(view) {
+        document.getElementById('view-calc').classList.toggle('active', view === 'calc');
+        document.getElementById('view-admin').classList.toggle('active', view === 'admin');
+        document.getElementById('tab-calc').classList.toggle('active', view === 'calc');
+        document.getElementById('tab-admin').classList.toggle('active', view === 'admin');
+        document.getElementById('calc-footer').style.display = (view === 'calc') ? 'block' : 'none';
+        // 當切換回計算器時，強迫刷新一次內容，確保後台更改有反映出來
+        if (view === 'calc') renderCalculator();
+    }
+
+    function copyToClipboard() {
+        const text = document.getElementById('preview-area').innerText;
+        if(text.includes("尚未")) return;
+        navigator.clipboard.writeText(text).then(() => alert('明細已複製到剪貼簿'));
+    }
+
+    function resetToDefault() { if(confirm('重置所有設定？')) { localStorage.removeItem('nail_v5_cfg'); location.reload(); } }
+
+    init();
+</script>
+</body>
+</html>
